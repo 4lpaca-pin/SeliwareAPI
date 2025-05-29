@@ -7,11 +7,15 @@ using System.Threading;
 
 class Program
 {
-    private static string ExecuteDir = "./executable";
+    private static string ExecuteDir = @".\executable";
     
     static void Main(string[] args)
-    {
-        Seliware.Initialize();
+    {   
+        Console.WriteLine("Initialize");
+
+        var Status = Seliware.Initialize();
+
+        Console.WriteLine("Finished");
 
         if (!Directory.Exists(ExecuteDir))
         {
@@ -22,9 +26,13 @@ class Program
         {
             File.Delete(fl);
         }
+
+        Thread.Sleep(500);
         
-        using (var watcher = new FileSystemWatcher(ExecuteDir))
+        using (var watcher = new FileSystemWatcher(@ExecuteDir))
         {
+            Console.WriteLine("connected to seli");
+
             watcher.NotifyFilter = NotifyFilters.Attributes
                                 | NotifyFilters.CreationTime
                                 | NotifyFilters.DirectoryName
@@ -36,48 +44,47 @@ class Program
 
             watcher.Created += OnChanged;
 
-            watcher.Filter = "*.lua";
+            watcher.Filter = "*.*";
             watcher.IncludeSubdirectories = true;
             watcher.EnableRaisingEvents = true;
-        }
 
-        new ManualResetEventSlim(false).Wait();
+            new ManualResetEventSlim(false).Wait();
+        }
     }
 
     private static void OnChanged(object sender, FileSystemEventArgs e)
     {
-        if (e.ChangeType != WatcherChangeTypes.Created || e.ChangeType != WatcherChangeTypes.Renamed)
+        if (e.Name.StartsWith("InjectProcess")) // Inject
         {
-            if (e.Name.StartsWith("InjectProcess")) // Inject
-            {
-                var ct = File.ReadAllText(e.FullPath);
+            Thread.Sleep(500);
+            
+            var ct = File.ReadAllText(e.FullPath);
 
-                int pid;
-                if (int.TryParse(ct, out pid))
-                {
-                    Inject(pid);
-                }
-                else
-                {
-                    Seliware.Inject();
-                }
-                
-                File.Delete(e.FullPath);
+            int pid;
+            if (int.TryParse(ct, out pid))
+            {
+                Inject(pid);
             }
             else
-            { // Execute
-                Thread.Sleep(100);
-
-                var source = File.ReadAllText(e.FullPath);
-
-                Execute(source);
-
-                Thread.Sleep(50);
-
-                File.Delete(e.FullPath);
+            {
+                Seliware.Inject();
             }
 
-            return;
+            Thread.Sleep(500);
+
+            File.Delete(e.FullPath);
+        }
+        else
+        { // Execute
+            Thread.Sleep(100);
+
+            var source = File.ReadAllText(e.FullPath);
+
+            Execute(source);
+
+            Thread.Sleep(50);
+
+            File.Delete(e.FullPath);
         }
     }
 
